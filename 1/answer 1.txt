@@ -1,0 +1,66 @@
+WITH table_every_m AS
+  (SELECT o.user_id AS user_id,
+          sum(CASE
+                  WHEN o.shipped_at BETWEEN fo.first_order + interval '1 month' AND fo.first_order + interval '2 month' THEN 1
+                  ELSE 0
+              END) AS first_m_retention,
+          sum(CASE
+                  WHEN o.shipped_at BETWEEN fo.first_order + interval '2 month' AND fo.first_order + interval '3 month' THEN 1
+                  ELSE 0
+              END) AS second_m_retention,
+          sum(CASE
+                  WHEN o.shipped_at BETWEEN fo.first_order + interval '3 month' AND fo.first_order + interval '4 month' THEN 1
+                  ELSE 0
+              END) AS third_m_retention,
+          sum(CASE
+                  WHEN o.shipped_at BETWEEN fo.first_order + interval '4 month' AND fo.first_order + interval '5 month' THEN 1
+                  ELSE 0
+              END) AS fourth_m_retention,
+          sum(CASE
+                  WHEN o.shipped_at BETWEEN fo.first_order + interval '5 month' AND fo.first_order + interval '6 month' THEN 1
+                  ELSE 0
+              END) AS fifth_m_retention,
+          sum(CASE
+                  WHEN o.shipped_at BETWEEN fo.first_order + interval '6 month' AND fo.first_order + interval '7 month' THEN 1
+                  ELSE 0
+              END) AS sixs_m_retention
+   FROM orders AS o
+   INNER JOIN
+     (SELECT user_id,
+             min(shipped_at) AS first_order
+      FROM orders
+      GROUP BY user_id
+      HAVING min(shipped_at) >= TIMESTAMP '2018-01-01'
+      AND min(shipped_at) < TIMESTAMP '2019-01-01') AS fo ON o.user_id = fo.user_id
+   GROUP BY o.user_id),
+     f_o AS
+  (SELECT user_id,
+          min(shipped_at) AS first_order
+   FROM orders
+   GROUP BY user_id
+   HAVING min(shipped_at) >= TIMESTAMP '2018-01-01'
+   AND min(shipped_at) < TIMESTAMP '2019-01-01')
+SELECT to_char(fo.first_order, 'YYYY-MM') AS first_month_of_the_first_order,
+       count(DISTINCT em.user_id) AS number_of_users,
+       CONCAT((count(CASE
+                         WHEN first_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT em.user_id)),' %') AS first_m_retention,
+       CONCAT((count(CASE
+                         WHEN second_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT em.user_id)),' %') AS second_m_retention,
+       CONCAT((count(CASE
+                         WHEN third_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT em.user_id)),' %') AS third_m_retention,
+       CONCAT((count(CASE
+                         WHEN fourth_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT em.user_id)),' %') AS fourth_m_retention,
+       CONCAT((count(CASE
+                         WHEN fifth_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT em.user_id)),' %') AS fifth_m_retention,
+       CONCAT((count(CASE
+                         WHEN sixs_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT em.user_id)),' %') AS sixs_m_retention
+FROM table_every_m AS em
+JOIN f_o AS fo ON em.user_id = fo.user_id
+GROUP BY to_char(fo.first_order, 'YYYY-MM')
+
