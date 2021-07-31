@@ -1,0 +1,65 @@
+SELECT to_char(first_order, 'YYYY-MM') AS first_month_of_the_first_order,
+       count(DISTINCT user_id) AS number_of_users,
+       CONCAT((count(CASE
+                         WHEN first_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT user_id)),' %') AS first_m_retention,
+       CONCAT((count(CASE
+                         WHEN second_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT user_id)),' %') AS second_m_retention,
+       CONCAT((count(CASE
+                         WHEN third_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT user_id)),' %') AS third_m_retention,
+       CONCAT((count(CASE
+                         WHEN fourth_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT user_id)),' %') AS fourth_m_retention,
+       CONCAT((count(CASE
+                         WHEN fifth_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT user_id)),' %') AS fifth_m_retention,
+       CONCAT((count(CASE
+                         WHEN sixs_m_retention != 0 THEN 1
+                     END)* 100/ count(DISTINCT user_id)),' %') AS sixs_m_retention
+FROM
+  (SELECT user_id,
+          min(shipped_at) AS first_order,
+          sum(first_m_retention) first_m_retention,
+          sum(second_m_retention) second_m_retention,
+          sum(third_m_retention) third_m_retention,
+          sum(fourth_m_retention) fourth_m_retention,
+          sum(fifth_m_retention) fifth_m_retention,
+          sum(sixs_m_retention) sixs_m_retention
+   FROM
+     (SELECT *
+      FROM
+        (SELECT user_id,
+                shipped_at,
+                min(shipped_at) OVER(PARTITION BY user_id) AS first_order,
+                CASE
+                    WHEN shipped_at BETWEEN min(shipped_at) OVER(PARTITION BY user_id) + interval '1 month' AND min(shipped_at) OVER(PARTITION BY user_id) + interval '2 month' THEN 1
+                    ELSE 0
+                END AS first_m_retention,
+                CASE
+                    WHEN shipped_at BETWEEN min(shipped_at) OVER(PARTITION BY user_id) + interval '2 month' AND min(shipped_at) OVER(PARTITION BY user_id) + interval '3 month' THEN 1
+                    ELSE 0
+                END AS second_m_retention,
+                CASE
+                    WHEN shipped_at BETWEEN min(shipped_at) OVER(PARTITION BY user_id) + interval '3 month' AND min(shipped_at) OVER(PARTITION BY user_id) + interval '4 month' THEN 1
+                    ELSE 0
+                END AS third_m_retention,
+                CASE
+                    WHEN shipped_at BETWEEN min(shipped_at) OVER(PARTITION BY user_id) + interval '4 month' AND min(shipped_at) OVER(PARTITION BY user_id) + interval '5 month' THEN 1
+                    ELSE 0
+                END AS fourth_m_retention,
+                CASE
+                    WHEN shipped_at BETWEEN min(shipped_at) OVER(PARTITION BY user_id) + interval '5 month' AND min(shipped_at) OVER(PARTITION BY user_id) + interval '6 month' THEN 1
+                    ELSE 0
+                END AS fifth_m_retention,
+                CASE
+                    WHEN shipped_at BETWEEN min(shipped_at) OVER(PARTITION BY user_id) + interval '6 month' AND min(shipped_at) OVER(PARTITION BY user_id) + interval '7 month' THEN 1
+                    ELSE 0
+                END AS sixs_m_retention,
+                shipped_at - min(shipped_at) OVER(PARTITION BY user_id) AS delta
+         FROM orders) AS foo
+      WHERE first_order >= TIMESTAMP '2018-01-01'
+        AND first_order < TIMESTAMP '2019-01-01') AS foo2
+   GROUP BY user_id) AS foo3
+GROUP BY to_char(first_order, 'YYYY-MM')
